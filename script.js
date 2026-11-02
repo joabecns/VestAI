@@ -1,217 +1,351 @@
-// ===== VESTE AI — script.js =====
+// ===== VESTE AI — Supabase, closet and Gemini =====
+const config = window.VESTEAI_CONFIG;
+const configurationReady = config
+  && config.url
+  && config.anonKey
+  && !config.url.includes('YOUR-PROJECT')
+  && !config.anonKey.includes('YOUR_SUPABASE');
 
-// --- 1. Pílulas do Guarda-Roupa ---
-const chatInput = document.getElementById('chat-input');
-const pills = document.querySelectorAll('.pill');
-
-pills.forEach(pill => {
-  pill.addEventListener('click', () => {
-    pill.classList.toggle('active');
-    updateInput();
-  });
-});
-
-function updateInput() {
-  const pecas = [...document.querySelectorAll('.pill:not(.occasion).active')].map(p => p.dataset.text);
-  const ocasioes = [...document.querySelectorAll('.pill.occasion.active')].map(p => p.dataset.text);
-  let texto = '';
-  if (pecas.length) texto += `Tenho: ${pecas.join(', ')}. `;
-  if (ocasioes.length) texto += `Ocasião: ${ocasioes.join(', ')}.`;
-  chatInput.value = texto.trim();
-}
-
-// --- 2. Assistente Bia (baseada em regras fixas) ---
-// Mesma entrada = mesma resposta. Não há chamada a IA externa.
+const authRequired = document.getElementById('auth-required');
+const closetApp = document.getElementById('closet-app');
+const accountForms = document.getElementById('account-forms');
+const sessionPanel = document.getElementById('session-panel');
+const sessionEmail = document.getElementById('session-email');
+const wardrobeForm = document.getElementById('wardrobe-form');
+const wardrobeStatus = document.getElementById('wardrobe-status');
+const closetItems = document.getElementById('closet-items');
+const closetStatus = document.getElementById('closet-status');
 const chatForm = document.getElementById('chat-form');
+const chatInput = document.getElementById('chat-input');
 const chatMessages = document.getElementById('chat-messages');
 
-const PECAS = ['Calça Jeans', 'Camisa Branca', 'Vestido Preto', 'Blazer', 'Tênis Casual', 'Salto'];
-const OCASIOES = ['Festa/Balada', 'Entrevista/Trabalho', 'Casamento', 'Encontro Casual'];
+let supabaseClient;
+let currentSession;
+let currentItems = [];
 
-// Palavras-chave (texto normalizado: minúsculas e sem acento)
-const PALAVRAS_PECA = {
-  'Calça Jeans': /\b(jeans|calca)\b/,
-  'Camisa Branca': /\bcamisa\b/,
-  'Vestido Preto': /\bvestido\b/,
-  'Blazer': /\bblazer\b/,
-  'Tênis Casual': /\btenis\b/,
-  'Salto': /\b(salto|sapato|scarpin)\b/
-};
-
-const PALAVRAS_OCASIAO = {
-  'Festa/Balada': /\b(festa|balada)\b/,
-  'Entrevista/Trabalho': /\b(entrevista|trabalho|reuniao|escritorio)\b/,
-  'Casamento': /\bcasamento\b/,
-  'Encontro Casual': /\b(encontro|date|cafe)\b/
-};
-
-// Regras de look por ocasião. A primeira combinação cujas peças estão todas
-// presentes é usada; se nenhuma bater, o look é montado com as peças informadas.
-const REGRAS = {
-  'Festa/Balada': {
-    calcadosPadrao: ['Salto', 'Tênis Casual'],
-    calcadoSemPeca: 'Sapato de salto ou tênis de couro limpo, para um visual arrumado.',
-    dicaPadrao: 'Escolha uma peça de cor vibrante para ser o destaque da noite.',
-    combinacoes: [
-      { pecas: ['Vestido Preto'], principal: 'Vestido Preto', calcados: ['Salto', 'Tênis Casual'],
-        dica: 'Acessórios marcantes, como brincos grandes ou uma bolsa de mão, dão o toque de festa.' },
-      { pecas: ['Camisa Branca', 'Calça Jeans'], principal: 'Camisa Branca + Calça Jeans', calcados: ['Salto', 'Tênis Casual'],
-        dica: 'Desabotoe o colarinho e use um cinto marcante para destacar a cintura.' },
-      { pecas: ['Blazer', 'Calça Jeans'], principal: 'Blazer + Calça Jeans', calcados: ['Tênis Casual', 'Salto'],
-        dica: 'Deixe o blazer aberto e dobre as mangas para um visual mais solto.' }
-    ]
-  },
-  'Entrevista/Trabalho': {
-    calcadosPadrao: ['Salto'],
-    calcadoSemPeca: 'Sapato fechado em cor neutra (preto, nude ou marrom).',
-    dicaPadrao: 'Priorize peças limpas, bem passadas e em cores neutras.',
-    combinacoes: [
-      { pecas: ['Blazer', 'Camisa Branca', 'Calça Jeans'], principal: 'Blazer + Camisa Branca + Calça Jeans escura', calcados: ['Salto'],
-        dica: 'Passe bem as peças e prefira uma calça jeans escura e sem desgastes.' },
-      { pecas: ['Blazer', 'Vestido Preto'], principal: 'Vestido Preto + Blazer', calcados: ['Salto'],
-        dica: 'Um blazer estruturado sobre o vestido preto transmite seriedade sem perder a elegância.' },
-      { pecas: ['Camisa Branca', 'Calça Jeans'], principal: 'Camisa Branca + Calça Jeans escura', calcados: ['Salto'],
-        dica: 'Evite tênis e jeans desbotado; passe a camisa e mantenha o visual sóbrio.' },
-      { pecas: ['Blazer', 'Calça Jeans'], principal: 'Blazer + Calça Jeans escura', calcados: ['Salto'],
-        dica: 'Se o ambiente for formal, troque o jeans por uma calça de alfaiataria.' }
-    ]
-  },
-  'Casamento': {
-    calcadosPadrao: ['Salto'],
-    calcadoSemPeca: 'Sapato social ou scarpin em tom neutro ou metálico.',
-    dicaPadrao: 'Evite o branco, reservado à noiva, e prefira cores sofisticadas.',
-    combinacoes: [
-      { pecas: ['Vestido Preto'], principal: 'Vestido Preto', calcados: ['Salto'],
-        dica: 'Para cerimônia de dia, acrescente um acessório dourado ou uma bolsa clara.' },
-      { pecas: ['Blazer', 'Camisa Branca'], principal: 'Blazer + Camisa Branca', calcados: ['Salto'],
-        dica: 'Confira o dress code do evento e prefira joias discretas.' }
-    ]
-  },
-  'Encontro Casual': {
-    calcadosPadrao: ['Tênis Casual', 'Salto'],
-    calcadoSemPeca: 'Tênis limpo ou sapatilha, para um visual confortável.',
-    dicaPadrao: 'Escolha uma peça de cor única para dar personalidade ao look.',
-    combinacoes: [
-      { pecas: ['Camisa Branca', 'Calça Jeans'], principal: 'Camisa Branca + Calça Jeans', calcados: ['Tênis Casual', 'Salto'],
-        dica: 'Dobre as mangas e use um relógio ou acessório simples para dar charme.' },
-      { pecas: ['Vestido Preto'], principal: 'Vestido Preto', calcados: ['Salto', 'Tênis Casual'],
-        dica: 'Uma jaqueta jeans por cima deixa o vestido mais casual.' },
-      { pecas: ['Blazer', 'Calça Jeans'], principal: 'Blazer + Calça Jeans', calcados: ['Tênis Casual'],
-        dica: 'Deixe o blazer aberto e use uma camiseta de cor sólida por baixo.' }
-    ]
-  }
-};
-
-const RESPOSTA_PACOTES = `Nossos pacotes digitais:
-• Look Express: R$ 14,90 — 5 combinações completas para um evento único.
-• Closet Inteligente Pro: R$ 29,90/mês — guarda-roupa ilimitado, sugestões diárias por clima e consultoria 24h.
-• Guia Armário Cápsula: R$ 49,90 — e-book interativo com 30 looks usando 12 peças básicas.
-
-Para montar um look agora, diga suas peças e a ocasião.`;
-
-function normalizar(texto) {
-  return texto.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+if (!configurationReady || !window.supabase?.createClient) {
+  setStatus(document.getElementById('signup-msg'),
+    'Configure a URL e a chave pública do Supabase em supabase-config.js para ativar o piloto.');
+  document.querySelectorAll('#account-forms input, #account-forms button, #account-forms select')
+    .forEach((element) => { element.disabled = true; });
+} else {
+  supabaseClient = window.supabase.createClient(config.url, config.anonKey);
+  initializeApp();
 }
 
-function montarLook(ocasiao, pecas) {
-  const regra = REGRAS[ocasiao];
-  const combo = regra.combinacoes.find(c => c.pecas.every(p => pecas.includes(p)));
-
-  const principal = combo ? combo.principal : pecas.join(' + ');
-  const preferidos = combo ? combo.calcados : regra.calcadosPadrao;
-  const calcadoDaCasa = preferidos.find(c => pecas.includes(c));
-  const calcado = calcadoDaCasa
-    ? `Use seu ${calcadoDaCasa.toLowerCase()}.`
-    : regra.calcadoSemPeca;
-  const dica = combo ? combo.dica : regra.dicaPadrao;
-
-  return `1. Combinação Principal: ${principal}.\n2. Calçado e Acessórios: ${calcado}\n3. Dica de Ouro: ${dica}`;
+async function initializeApp() {
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (error) {
+    setStatus(document.getElementById('login-msg'), error.message);
+    return;
+  }
+  await updateSession(data.session);
+  supabaseClient.auth.onAuthStateChange((_event, session) => {
+    window.setTimeout(() => updateSession(session), 0);
+  });
 }
 
-function responderBia(texto) {
-  const t = normalizar(texto);
-  const pecas = PECAS.filter(p => PALAVRAS_PECA[p].test(t));
-  const ocasioes = OCASIOES.filter(o => PALAVRAS_OCASIAO[o].test(t));
-
-  // 1. Pedido de look: peças e/ou ocasião informadas
-  if (pecas.length || ocasioes.length) {
-    if (!ocasioes.length) {
-      return `Para qual ocasião você quer o look? Escolha uma: ${OCASIOES.join(', ')}.`;
-    }
-    if (!pecas.length) {
-      return `Quais peças você tem em casa? Escolha uma ou mais: ${PECAS.join(', ')}.`;
-    }
-    const ocasiao = ocasioes[0];
-    let resposta = montarLook(ocasiao, pecas);
-    if (ocasioes.length > 1) {
-      resposta += `\n\n(Considerei apenas a ocasião "${ocasiao}". Para as outras, envie uma nova mensagem.)`;
-    }
-    return resposta;
+async function updateSession(session) {
+  currentSession = session;
+  const signedIn = Boolean(session);
+  authRequired.classList.toggle('hidden', signedIn);
+  closetApp.classList.toggle('hidden', !signedIn);
+  accountForms.classList.toggle('hidden', signedIn);
+  sessionPanel.classList.toggle('hidden', !signedIn);
+  sessionEmail.textContent = signedIn ? `Conectado como ${session.user.email}` : '';
+  if (signedIn) {
+    await loadCloset();
+  } else {
+    currentItems = [];
+    closetItems.replaceChildren(createMessage('Entre na sua conta para ver as peças.'));
   }
-
-  // 2. Perguntas sobre pacotes e preços
-  if (/\b(preco|precos|quanto|valor|valores|pacote|pacotes|plano|planos|assinar|assinatura|comprar|guia|express|closet)\b/.test(t)) {
-    return RESPOSTA_PACOTES;
-  }
-
-  // 3. Saudação
-  if (/\b(oi|ola|bom dia|boa tarde|boa noite)\b/.test(t)) {
-    return 'Olá! Sou a Bia, sua Personal Stylist. Selecione suas peças e a ocasião acima, ou escreva as duas informações aqui.';
-  }
-
-  // 4. Assunto de moda sem peças ou ocasião claras
-  if (/\b(roupa|roupas|look|looks|combinar|combinacao|estilo|vestir|moda|pecas|armario|closet|guarda)\b/.test(t)) {
-    return 'Posso montar um look para você! Me diga quais peças você tem e a ocasião. Exemplo: "Tenho blazer e calça jeans, vou a uma entrevista".';
-  }
-
-  // 5. Qualquer outro assunto
-  return 'Desculpe, meu foco é exclusivamente moda e estilo. Posso ajudar a montar um look ou apresentar nossos pacotes.';
 }
 
-chatForm.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const texto = chatInput.value.trim();
-  if (!texto) return;
+document.getElementById('signup-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = new FormData(form);
+  const button = form.querySelector('button[type="submit"]');
+  setBusy(button, true);
+  hideStatus(document.getElementById('signup-msg'));
+  try {
+    const { data: result, error } = await supabaseClient.auth.signUp({
+      email: String(data.get('email')).trim(),
+      password: String(data.get('senha')),
+      options: {
+        data: {
+          name: String(data.get('nome')).trim(),
+          style: String(data.get('estilo'))
+        }
+      }
+    });
+    if (error) throw error;
+    form.reset();
+    setStatus(document.getElementById('signup-msg'), result.session
+      ? 'Conta criada. Você já pode enviar fotos para o seu closet.'
+      : 'Conta criada. Confira seu e-mail para confirmar o cadastro e depois entre.');
+  } catch (error) {
+    setStatus(document.getElementById('signup-msg'), `Não foi possível criar a conta: ${error.message}`);
+  } finally {
+    setBusy(button, false);
+  }
+});
 
-  addMsg(texto, 'user');
+document.getElementById('login-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = new FormData(form);
+  const button = form.querySelector('button[type="submit"]');
+  setBusy(button, true);
+  hideStatus(document.getElementById('login-msg'));
+  try {
+    const { error } = await supabaseClient.auth.signInWithPassword({
+      email: String(data.get('email')).trim(),
+      password: String(data.get('senha'))
+    });
+    if (error) throw error;
+    form.reset();
+  } catch (error) {
+    setStatus(document.getElementById('login-msg'), `Não foi possível entrar: ${error.message}`);
+  } finally {
+    setBusy(button, false);
+  }
+});
+
+document.getElementById('logout-button').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  setBusy(button, true);
+  try {
+    const { error } = await supabaseClient.auth.signOut();
+    if (error) throw error;
+  } catch (error) {
+    setStatus(document.getElementById('account-msg'), `Não foi possível sair: ${error.message}`);
+  } finally {
+    setBusy(button, false);
+  }
+});
+
+wardrobeForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (!currentSession) return;
+  const form = event.currentTarget;
+  const name = form.elements.name.value.trim();
+  const file = form.elements.photo.files[0];
+  const button = form.querySelector('button[type="submit"]');
+  if (!file) {
+    setStatus(wardrobeStatus, 'Escolha uma imagem antes de enviar.');
+    return;
+  }
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    setStatus(wardrobeStatus, 'Use uma imagem JPEG, PNG ou WebP.');
+    return;
+  }
+  if (file.size > 4 * 1024 * 1024) {
+    setStatus(wardrobeStatus, 'A imagem deve ter no máximo 4 MB.');
+    return;
+  }
+
+  setBusy(button, true);
+  hideStatus(wardrobeStatus);
+  const id = crypto.randomUUID();
+  const extension = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[file.type];
+  const path = `${currentSession.user.id}/${id}.${extension}`;
+  let uploaded = false;
+  try {
+    const { error: uploadError } = await supabaseClient.storage
+      .from('wardrobe')
+      .upload(path, file, { contentType: file.type, upsert: false });
+    if (uploadError) throw uploadError;
+    uploaded = true;
+
+    const { error: insertError } = await supabaseClient.from('closet_items').insert({
+      id,
+      name,
+      storage_path: path,
+      content_type: file.type
+    });
+    if (insertError) throw insertError;
+
+    form.reset();
+    setStatus(wardrobeStatus, 'Foto adicionada ao seu closet.');
+    await loadCloset();
+  } catch (error) {
+    let message = `Não foi possível adicionar a peça: ${error.message}`;
+    if (uploaded) {
+      const { error: cleanupError } = await supabaseClient.storage.from('wardrobe').remove([path]);
+      if (cleanupError) message += ` Também não foi possível limpar o arquivo enviado: ${cleanupError.message}`;
+    }
+    setStatus(wardrobeStatus, message);
+  } finally {
+    setBusy(button, false);
+  }
+});
+
+async function loadCloset() {
+  closetItems.replaceChildren(createMessage('Carregando seu closet...'));
+  hideStatus(closetStatus);
+  const { data, error } = await supabaseClient
+    .from('closet_items')
+    .select('id, name, storage_path, created_at')
+    .order('created_at', { ascending: false });
+  if (error) {
+    currentItems = [];
+    closetItems.replaceChildren(createMessage('Não foi possível carregar as peças.'));
+    setStatus(closetStatus, `Erro ao carregar o closet: ${error.message}`);
+    return;
+  }
+  currentItems = data;
+  if (!data.length) {
+    closetItems.replaceChildren(createMessage('Seu closet está vazio. Envie a foto de uma peça para começar.'));
+    return;
+  }
+
+  const cards = await Promise.all(data.map(async (item) => {
+    const { data: image, error: imageError } = await supabaseClient.storage
+      .from('wardrobe')
+      .createSignedUrl(item.storage_path, 300);
+    if (imageError) {
+      return createItemCard(item, null, imageError.message);
+    }
+    return createItemCard(item, image.signedUrl);
+  }));
+  closetItems.replaceChildren(...cards);
+}
+
+function createItemCard(item, imageUrl, imageError) {
+  const card = document.createElement('article');
+  card.className = 'closet-item';
+
+  const label = document.createElement('label');
+  label.className = 'closet-item-select';
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.value = item.id;
+  checkbox.setAttribute('aria-label', `Selecionar ${item.name} para análise`);
+  const name = document.createElement('span');
+  name.textContent = item.name;
+  label.append(checkbox, name);
+
+  if (imageUrl) {
+    const image = document.createElement('img');
+    image.src = imageUrl;
+    image.alt = item.name;
+    image.loading = 'lazy';
+    card.append(image);
+  } else {
+    const error = createMessage(`Imagem indisponível: ${imageError}`);
+    error.className = 'image-error';
+    card.append(error);
+  }
+
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'remove-item';
+  remove.textContent = 'Remover';
+  remove.addEventListener('click', () => removeItem(item, remove));
+  card.append(label, remove);
+  return card;
+}
+
+async function removeItem(item, button) {
+  if (!window.confirm(`Remover "${item.name}" do seu closet?`)) return;
+  setBusy(button, true);
+  hideStatus(closetStatus);
+  const { error: storageError } = await supabaseClient.storage
+    .from('wardrobe')
+    .remove([item.storage_path]);
+  if (storageError) {
+    setStatus(closetStatus, `Não foi possível remover a foto: ${storageError.message}`);
+    setBusy(button, false);
+    return;
+  }
+  const { error: rowError } = await supabaseClient.from('closet_items').delete().eq('id', item.id);
+  if (rowError) {
+    setStatus(closetStatus, `A foto foi removida, mas o registro da peça não: ${rowError.message}`);
+    setBusy(button, false);
+    await loadCloset();
+    return;
+  }
+  await loadCloset();
+}
+
+chatForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (!currentSession) {
+    addMsg('Entre na sua conta para pedir uma sugestão.', 'bot');
+    return;
+  }
+  const message = chatInput.value.trim();
+  const itemIds = [...closetItems.querySelectorAll('input[type="checkbox"]:checked')]
+    .map((checkbox) => checkbox.value);
+  if (!message) return;
+  if (!itemIds.length || itemIds.length > 4) {
+    addMsg('Selecione de 1 a 4 fotos do seu closet para eu analisar.', 'bot');
+    return;
+  }
+
+  addMsg(message, 'user');
   chatInput.value = '';
-  // Desativa pílulas ativas após enviar
-  pills.forEach(p => p.classList.remove('active'));
-
-  addMsg(responderBia(texto), 'bot');
+  const submitButton = chatForm.querySelector('button[type="submit"]');
+  setBusy(submitButton, true);
+  const pending = addMsg('Analisando as peças selecionadas...', 'bot');
+  try {
+    const { data, error } = await supabaseClient.functions.invoke('recommend-look', {
+      body: { message, itemIds }
+    });
+    if (error) {
+      let details = error.message;
+      if (error.context instanceof Response) {
+        const body = await error.context.json().catch(() => null);
+        details = body?.error || details;
+      }
+      throw new Error(details);
+    }
+    if (!data?.reply) throw new Error('A IA retornou uma resposta vazia.');
+    pending.textContent = data.reply;
+  } catch (error) {
+    pending.textContent = `Não foi possível gerar a sugestão: ${error.message}`;
+  } finally {
+    setBusy(submitButton, false);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
 });
 
-function addMsg(text, cls) {
-  const div = document.createElement('div');
-  div.className = `msg ${cls}`;
-  div.textContent = text;
-  chatMessages.appendChild(div);
+function addMsg(text, className) {
+  const message = document.createElement('div');
+  message.className = `msg ${className}`;
+  message.textContent = text;
+  chatMessages.append(message);
   chatMessages.scrollTop = chatMessages.scrollHeight;
-  return div;
+  return message;
 }
 
-// --- 3. Formulário de Cadastro ---
-const signupForm = document.getElementById('signup-form');
-const signupMsg = document.getElementById('signup-msg');
+function createMessage(text) {
+  const message = document.createElement('p');
+  message.className = 'empty-state';
+  message.textContent = text;
+  return message;
+}
 
-signupForm.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const dados = new FormData(signupForm);
-  const nome = dados.get('nome');
-  const estilo = dados.get('estilo');
+function setStatus(element, text) {
+  element.textContent = text;
+  element.classList.remove('hidden');
+}
 
-  signupMsg.textContent = `🎉 Perfeito, ${nome}! Seu perfil "${estilo}" foi salvo. Em breve você receberá seu look VIP gratuito por e-mail!`;
-  signupMsg.classList.remove('hidden');
-  signupForm.reset();
-  setTimeout(() => signupMsg.classList.add('hidden'), 8000);
-});
+function hideStatus(element) {
+  element.textContent = '';
+  element.classList.add('hidden');
+}
 
-// --- 4. Cabeçalho: cor dos links ao rolar a página ---
+function setBusy(button, busy) {
+  button.disabled = busy;
+  button.setAttribute('aria-busy', String(busy));
+}
+
+// --- Cabeçalho: cor dos links ao rolar a página ---
 const header = document.getElementById('header');
-
 function atualizarHeader() {
   header.classList.toggle('scrolled', window.scrollY > 40);
 }
-
 window.addEventListener('scroll', atualizarHeader, { passive: true });
 atualizarHeader();
