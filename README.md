@@ -35,7 +35,7 @@
 
 1. Clone o repositório:
    ```bash
-   git clone https://github.com/seu-usuario/veste-ai.git
+   git clone https://github.com/joabecns/VestAI.git
    ```
 2. Abra o arquivo `index.html` no navegador.
 3. **Importante:** Para usar o chat com a IA, substitua `SUA_API_KEY` no arquivo `script.js` pela sua chave da [Google AI Studio](https://aistudio.google.com/apikey).
