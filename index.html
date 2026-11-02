@@ -35,48 +35,36 @@
   <section id="closet">
     <span class="eyebrow">GUARDA-ROUPA VIRTUAL</span>
     <h2>Toque nas suas peças.<br><span class="muted">Peça seu look.</span></h2>
-    <p class="legend">Envie fotos das suas peças e peça à Bia combinações para qualquer ocasião.</p>
+    <p class="legend">Selecione rapidamente o que você tem em casa ou digite a ocasião abaixo.</p>
 
-    <div id="auth-required" class="notice">
-      Crie uma conta ou entre para montar seu closet e conversar com a Bia.
-      <a href="#cadastro">Acessar minha conta</a>
+    <div class="tags-group">
+      <strong>Peças</strong>
+      <div class="pills">
+        <button class="pill" data-text="Calça Jeans">+ Calça Jeans</button>
+        <button class="pill" data-text="Camisa Branca">+ Camisa Branca</button>
+        <button class="pill" data-text="Vestido Preto">+ Vestido Preto</button>
+        <button class="pill" data-text="Blazer">+ Blazer</button>
+        <button class="pill" data-text="Tênis Casual">+ Tênis Casual</button>
+        <button class="pill" data-text="Salto">+ Salto</button>
+      </div>
+      <strong>Ocasião</strong>
+      <div class="pills">
+        <button class="pill occasion" data-text="Festa/Balada">🎉 Festa/Balada</button>
+        <button class="pill occasion" data-text="Entrevista/Trabalho">💼 Entrevista/Trabalho</button>
+        <button class="pill occasion" data-text="Casamento">🥂 Casamento</button>
+        <button class="pill occasion" data-text="Encontro Casual">☕ Encontro Casual</button>
+      </div>
     </div>
 
-    <div id="closet-app" class="hidden">
-      <div class="closet-layout">
-        <div class="closet-panel">
-          <h3>Adicionar uma peça</h3>
-          <form id="wardrobe-form">
-            <label for="item-name">Nome da peça</label>
-            <input id="item-name" name="name" type="text" maxlength="80" placeholder="Ex.: Blazer bege" required>
-            <label for="item-photo">Foto (JPEG, PNG ou WebP; até 4 MB)</label>
-            <input id="item-photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" required>
-            <button type="submit" class="btn-pill accent full">Enviar foto</button>
-          </form>
-          <p id="wardrobe-status" class="form-status" role="status"></p>
-          <p class="privacy-note">As imagens ficam no armazenamento privado da sua conta. Ao pedir uma sugestão, as peças selecionadas serão enviadas ao Google Gemini para análise.</p>
-        </div>
-
-        <div class="closet-panel">
-          <h3>Meu closet</h3>
-          <p class="closet-hint">Selecione de 1 a 4 peças para a Bia considerar no look.</p>
-          <div id="closet-items" class="closet-items">
-            <p class="empty-state">Suas peças aparecerão aqui depois do upload.</p>
-          </div>
-          <p id="closet-status" class="form-status" role="status"></p>
-        </div>
+    <div class="chat-mockup">
+      <div class="chat-header">💬 Bia — Personal Stylist</div>
+      <div id="chat-messages" class="chat-body">
+        <div class="msg bot">Olá! Sou a Bia 👋 Selecione suas peças acima e me diga a ocasião. Vou montar o look perfeito pra você!</div>
       </div>
-
-      <div class="chat-mockup">
-        <div class="chat-header">💬 Bia — Personal Stylist com IA</div>
-        <div id="chat-messages" class="chat-body" aria-live="polite">
-          <div class="msg bot">Olá! Selecione fotos do seu closet e me conte para qual ocasião quer um look. Suas fotos serão analisadas pelo Gemini.</div>
-        </div>
-        <form id="chat-form" class="chat-input">
-          <input type="text" id="chat-input" placeholder="Ex.: Monte um look para uma entrevista de trabalho" autocomplete="off" maxlength="1000" required>
-          <button type="submit" class="btn-pill accent">Enviar</button>
-        </form>
-      </div>
+      <form id="chat-form" class="chat-input">
+        <input type="text" id="chat-input" placeholder="Ex: Tenho blazer e calça jeans, vou a uma entrevista..." autocomplete="off">
+        <button type="submit" class="btn-pill accent">Enviar</button>
+      </form>
     </div>
   </section>
 
@@ -126,15 +114,12 @@
   <!-- SEÇÃO 4: CADASTRO -->
   <section id="cadastro">
     <span class="eyebrow">COMECE AGORA</span>
-    <h2>Seu closet, protegido.<br><span class="muted">Entre ou crie sua conta.</span></h2>
+    <h2>Crie seu perfil de estilo.<br><span class="muted">E ganhe 1 look VIP gratuito.</span></h2>
 
     <div class="form-card">
-      <div id="account-forms">
-        <form id="signup-form">
-          <h3>Criar conta</h3>
+      <form id="signup-form">
         <input type="text" name="nome" placeholder="Nome completo" required>
         <input type="email" name="email" placeholder="Seu melhor e-mail" required>
-        <input type="password" name="senha" placeholder="Senha (mínimo 8 caracteres)" minlength="8" autocomplete="new-password" required>
         <select name="estilo" required>
           <option value="" disabled selected>Estilo principal</option>
           <option>Casual</option>
@@ -142,23 +127,10 @@
           <option>Streetwear</option>
           <option>Minimalista</option>
         </select>
-          <button type="submit" class="btn-pill accent full">Criar conta</button>
-        </form>
-        <p id="signup-msg" class="signup-msg hidden" role="status"></p>
-
-        <form id="login-form" class="login-form">
-          <h3>Já tem uma conta?</h3>
-          <input type="email" name="email" placeholder="Seu e-mail" autocomplete="email" required>
-          <input type="password" name="senha" placeholder="Sua senha" autocomplete="current-password" required>
-          <button type="submit" class="btn-pill dark full">Entrar</button>
-        </form>
-        <p id="login-msg" class="signup-msg hidden" role="status"></p>
-      </div>
-      <div id="session-panel" class="hidden">
-        <p id="session-email"></p>
-        <button id="logout-button" type="button" class="btn-pill dark full">Sair da conta</button>
-        <p id="account-msg" class="signup-msg hidden" role="status"></p>
-      </div>
+        <input type="text" name="evento" placeholder="Qual seu próximo evento?">
+        <button type="submit" class="btn-pill accent full">Salvar Meu Perfil & Receber Look</button>
+      </form>
+      <div id="signup-msg" class="signup-msg hidden"></div>
     </div>
   </section>
 
@@ -167,7 +139,7 @@
     <div class="footer-grid">
       <div>
         <h4>✦ Veste AI</h4>
-        <p>Consultoria de estilo inteligente.<br>Imagens analisadas pelo Google Gemini quando você solicitar.</p>
+        <p>Consultoria de estilo inteligente.<br>Web App integrado ao Google Gemini.</p>
       </div>
       <div>
         <h4>Navegação</h4>
@@ -180,8 +152,6 @@
     <p class="copy">© 2026 Veste AI — Faculdade Estadual Piauí (PIT) - Bacharelado em IA</p>
   </footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase-config.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
