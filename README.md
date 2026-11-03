@@ -1,6 +1,6 @@
 # Veste AI 👗✨
 
-> Consultoria de estilo inteligente — Monte looks incríveis com as roupas que você já tem, powered by Gemini AI.
+> Consultoria de estilo inteligente, Monte looks incríveis com as roupas que você já tem, powered by Gemini AI.
 
 ## 📋 Sobre o Projeto
 
