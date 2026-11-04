@@ -14,13 +14,19 @@
   <!-- HEADER FLUTUANTE -->
   <header id="header">
     <a href="#inicio" class="logo">✦ Veste AI</a>
-    <nav>
-      <a href="#inicio">Início</a>
-      <a href="#closet">Meu Closet</a>
-      <a href="#planos">Planos</a>
-      <a href="#cadastro">Cadastro</a>
+    <button id="menu-toggle" class="menu-toggle" aria-label="Abrir menu" aria-expanded="false">
+      <span class="hamburger-bar"></span>
+      <span class="hamburger-bar"></span>
+      <span class="hamburger-bar"></span>
+    </button>
+    <nav id="nav-menu">
+      <a href="#inicio" class="nav-link">Início</a>
+      <a href="#closet" class="nav-link">Meu Closet</a>
+      <a href="#planos" class="nav-link">Planos</a>
+      <a href="#cadastro" class="nav-link">Cadastro</a>
+      <a href="#closet" class="btn-pill accent nav-btn-mobile">Montar Look</a>
     </nav>
-    <a href="#closet" class="btn-header">Montar Look</a>
+    <a href="#closet" class="btn-header nav-btn-desktop">Montar Look</a>
   </header>
 
   <!-- SEÇÃO 1: HERO -->
@@ -31,52 +37,31 @@
     </section>
   </div>
 
-  <!-- SEÇÃO 2: CLOSET & ASSISTENTE IA -->
+  <!-- SEÇÃO 2: CLOSET & CARROSSEL DE ROUPAS -->
   <section id="closet">
     <span class="eyebrow">GUARDA-ROUPA VIRTUAL</span>
     <h2>Toque nas suas peças.<br><span class="muted">Peça seu look.</span></h2>
-    <p class="legend">Envie fotos das suas peças e peça à Bia combinações para qualquer ocasião.</p>
+    <p class="legend">Selecione as peças do seu closet para montar o look ou adicione novas fotos.</p>
 
-    <div id="auth-required" class="notice">
-      Crie uma conta ou entre para montar seu closet e conversar com a Bia.
-      <a href="#cadastro">Acessar minha conta</a>
+    <!-- CARROSSEL HORIZONTAL DE ROUPAS -->
+    <div class="closet-carousel-wrapper">
+      <div class="carousel-fade carousel-fade-left"></div>
+      <button class="carousel-nav carousel-prev" aria-label="Anterior">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="closet-carousel" id="closet-carousel">
+        <!-- Cards serão inseridos via JS -->
+      </div>
+      <button class="carousel-nav carousel-next" aria-label="Próximo">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <div class="carousel-fade carousel-fade-right"></div>
     </div>
 
-    <div id="closet-app" class="hidden">
-      <div class="closet-layout">
-        <div class="closet-panel">
-          <h3>Adicionar uma peça</h3>
-          <form id="wardrobe-form">
-            <label for="item-name">Nome da peça</label>
-            <input id="item-name" name="name" type="text" maxlength="80" placeholder="Ex.: Blazer bege" required>
-            <label for="item-photo">Foto (JPEG, PNG ou WebP; até 4 MB)</label>
-            <input id="item-photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" required>
-            <button type="submit" class="btn-pill accent full">Enviar foto</button>
-          </form>
-          <p id="wardrobe-status" class="form-status" role="status"></p>
-          <p class="privacy-note">As imagens ficam no armazenamento privado da sua conta. Ao pedir uma sugestão, as peças selecionadas serão enviadas ao Google Gemini para análise.</p>
-        </div>
-
-        <div class="closet-panel">
-          <h3>Meu closet</h3>
-          <p class="closet-hint">Selecione de 1 a 4 peças para a Bia considerar no look.</p>
-          <div id="closet-items" class="closet-items">
-            <p class="empty-state">Suas peças aparecerão aqui depois do upload.</p>
-          </div>
-          <p id="closet-status" class="form-status" role="status"></p>
-        </div>
-      </div>
-
-      <div class="chat-mockup">
-        <div class="chat-header">💬 Bia — Personal Stylist com IA</div>
-        <div id="chat-messages" class="chat-body" aria-live="polite">
-          <div class="msg bot">Olá! Selecione fotos do seu closet e me conte para qual ocasião quer um look. Suas fotos serão analisadas pelo Gemini.</div>
-        </div>
-        <form id="chat-form" class="chat-input">
-          <input type="text" id="chat-input" placeholder="Ex.: Monte um look para uma entrevista de trabalho" autocomplete="off" maxlength="1000" required>
-          <button type="submit" class="btn-pill accent">Enviar</button>
-        </form>
-      </div>
+    <!-- BOTÃO MONTAR GUARDA-ROUPA VIRTUAL -->
+    <div class="closet-actions">
+      <button class="btn-pill accent" id="btn-add-roupa">Montar guarda-roupa virtual</button>
+      <input type="file" id="input-add-roupa" accept="image/*" capture="environment" multiple hidden>
     </div>
   </section>
 
@@ -126,15 +111,12 @@
   <!-- SEÇÃO 4: CADASTRO -->
   <section id="cadastro">
     <span class="eyebrow">COMECE AGORA</span>
-    <h2>Seu closet, protegido.<br><span class="muted">Entre ou crie sua conta.</span></h2>
+    <h2>Crie seu perfil de estilo.<br><span class="muted">E ganhe 1 look VIP gratuito.</span></h2>
 
     <div class="form-card">
-      <div id="account-forms">
-        <form id="signup-form">
-          <h3>Criar conta</h3>
+      <form id="signup-form">
         <input type="text" name="nome" placeholder="Nome completo" required>
         <input type="email" name="email" placeholder="Seu melhor e-mail" required>
-        <input type="password" name="senha" placeholder="Senha (mínimo 8 caracteres)" minlength="8" autocomplete="new-password" required>
         <select name="estilo" required>
           <option value="" disabled selected>Estilo principal</option>
           <option>Casual</option>
@@ -142,23 +124,10 @@
           <option>Streetwear</option>
           <option>Minimalista</option>
         </select>
-          <button type="submit" class="btn-pill accent full">Criar conta</button>
-        </form>
-        <p id="signup-msg" class="signup-msg hidden" role="status"></p>
-
-        <form id="login-form" class="login-form">
-          <h3>Já tem uma conta?</h3>
-          <input type="email" name="email" placeholder="Seu e-mail" autocomplete="email" required>
-          <input type="password" name="senha" placeholder="Sua senha" autocomplete="current-password" required>
-          <button type="submit" class="btn-pill dark full">Entrar</button>
-        </form>
-        <p id="login-msg" class="signup-msg hidden" role="status"></p>
-      </div>
-      <div id="session-panel" class="hidden">
-        <p id="session-email"></p>
-        <button id="logout-button" type="button" class="btn-pill dark full">Sair da conta</button>
-        <p id="account-msg" class="signup-msg hidden" role="status"></p>
-      </div>
+        <input type="text" name="evento" placeholder="Qual seu próximo evento?">
+        <button type="submit" class="btn-pill accent full">Salvar Meu Perfil & Receber Look</button>
+      </form>
+      <div id="signup-msg" class="signup-msg hidden"></div>
     </div>
   </section>
 
@@ -167,7 +136,7 @@
     <div class="footer-grid">
       <div>
         <h4>✦ Veste AI</h4>
-        <p>Consultoria de estilo inteligente.<br>Imagens analisadas pelo Google Gemini quando você solicitar.</p>
+        <p>Consultoria de estilo inteligente.<br>Web App integrado ao Google Gemini.</p>
       </div>
       <div>
         <h4>Navegação</h4>
@@ -180,8 +149,29 @@
     <p class="copy">© 2026 Veste AI — Faculdade Estadual Piauí (PIT) - Bacharelado em IA</p>
   </footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase-config.js"></script>
+  <!-- WIDGET FLUTUANTE: CHAT DA BIA -->
+  <div id="bia-chat-widget" class="bia-widget">
+    <!-- Janela do chat (escondida por padrão) -->
+    <div id="bia-chat-window" class="bia-chat-window hidden">
+      <div class="bia-chat-header">
+        <span>💬 Bia — Personal Stylist</span>
+        <button id="bia-chat-close" class="bia-chat-close" aria-label="Fechar chat">&times;</button>
+      </div>
+      <div id="chat-messages" class="bia-chat-body">
+        <div class="msg bot">Olá! Sou a Bia 👋 Selecione suas peças no carrossel acima e me diga a ocasião. Vou montar o look perfeito pra você!</div>
+      </div>
+      <form id="chat-form" class="bia-chat-input">
+        <input type="text" id="chat-input" placeholder="Ex: Vou a uma entrevista..." autocomplete="off">
+        <button type="submit" class="btn-pill accent">Enviar</button>
+      </form>
+    </div>
+    <!-- Botão FAB flutuante -->
+    <button id="bia-fab" class="bia-fab" aria-label="Abrir chat com Bia">
+      <span class="bia-fab-icon">✦</span>
+      <span class="bia-fab-label">Bia • Estilista</span>
+    </button>
+  </div>
+
   <script src="script.js"></script>
 </body>
 </html>
